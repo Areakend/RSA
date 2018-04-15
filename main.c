@@ -26,14 +26,14 @@ void checkPorts(){
     exit(1);
   }
 
-  if (setsockopt(sockfd,IPPROTO_IP,IP_HDRINCL,&on,sizeof(on))<0) {
+  if (setsockopt(sockfd,IPPROTO_ICMP,IP_HDRINCL,&on,sizeof(on))<0) {
     perror("SocketOpt Error: ");
     exit(1);
   }
 
 }
 
-int main (int argc, char *argv[]){
+int main (){
   checkPorts();
   printf("Check Ports: Done.\n");
 }
