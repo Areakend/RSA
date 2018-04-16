@@ -1,2 +1,2 @@
 all:	main.c
-	gcc -o nmap main.c
+	gcc -o mainRaph mainRaph.c

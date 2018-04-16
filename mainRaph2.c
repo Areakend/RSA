@@ -25,7 +25,6 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
-#include <ifaddrs.h>
 #include <unistd.h> //fork
 #include <sys/wait.h> //wait
 
@@ -57,24 +56,6 @@ unsigned short checksum(void *b, int len)
     return result;
 }
 
-int getIP ()
-{
-    struct ifaddrs *ifap, *ifa;
-    struct sockaddr_in *sa;
-    char *addr;
-
-    getifaddrs (&ifap);
-    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family==AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_netmask;
-            addr = inet_ntoa(sa->sin_addr);
-            printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
-        }
-    }
-
-    freeifaddrs(ifap);
-    return 0;
-}
 
 char PrintIp()
 {
@@ -243,7 +224,7 @@ void receiver(void) {
 int main (int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
-getIP();
+PrintIp();
         pid = getpid();
         bzero(&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = PF_INET;
