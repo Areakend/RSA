@@ -57,22 +57,37 @@ unsigned short checksum(void *b, int len)
     return result;
 }
 
-int getIP ()
+char getIP ()
 {
-    struct ifaddrs *ifap, *ifa;
+    struct ifaddrs *ifa2, *ifa;
     struct sockaddr_in *sa;
-    char *addr;
+    char *addr, *addr2;
+    char addressOutputBuffer[INET_ADDRSTRLEN];
 
-    getifaddrs (&ifap);
-    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+
+    getifaddrs (&ifa2);
+    for (ifa = ifa2; ifa; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr->sa_family==AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_netmask;
             addr = inet_ntoa(sa->sin_addr);
-            printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+            addr2 = inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
+            if (strcmp(ifa->ifa_name,"wifi0")==0) {
+                printf("\n Adresse ip sur wifi0 du PC : ");
+                fflush(stdout);
+                printf(addr2);
+                fflush(stdout);
+                printf("\n Masque sous réseau sur wifi0 du PC : ");
+                fflush(stdout);
+                printf(addr);
+                fflush(stdout);
+
+                return addr;
+            }
+ //           printf("Interface: %s\tAddress: %s\n & %s\t", ifa->ifa_name, addr);
         }
     }
 
-    freeifaddrs(ifap);
+    freeifaddrs(ifa2);
     return 0;
 }
 
@@ -187,7 +202,7 @@ void receiver(void) {
             exit(1);
         } else {
             printf("\n Socket recu bg");
-            printf("\n Adresse : ");
+            printf("\n Adresse ayant envoyé le paquet : ");
             printf(inet_ntoa(fromAddr.sin_addr));
             fflush(stdout);
 
@@ -247,15 +262,13 @@ getIP();
         pid = getpid();
         bzero(&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = PF_INET;
-        serv_addr.sin_addr.s_addr = inet_addr("192.168.1.19");  //Adresse internet  #192.168.1.19 , 192.168.1.43
+        serv_addr.sin_addr.s_addr = inet_addr("192.168.1.30");  //Adresse internet  #192.168.1.19 , 192.168.1.43
         serv_addr.sin_port = 0;  //Port number
         if (fork() == 0) {
-            printf("hello receiver");
             fflush(stdout);
             receiver();
         }
         else {
-            printf("Hello sender");
             fflush(stdout);
             sender(&serv_addr);
         }
