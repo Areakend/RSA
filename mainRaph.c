@@ -56,6 +56,28 @@ unsigned short checksum(void *b, int len)
     return result;
 }
 
+char PrintIp()
+{
+    struct hostent * host;
+    struct in_addr addr;
+    char hostname[256];
+
+    if (gethostname(hostname, sizeof(hostname)) == 0)
+        printf("%s\n", hostname);
+    if ((host = gethostbyname(hostname)) != NULL)
+    {
+        int i;
+
+        for(i = 0; host->h_addr_list[i] != NULL; i++)
+        {
+            memcpy(&addr.s_addr, host->h_addr_list[i], sizeof(addr.s_addr));
+            printf("IP : %s\n", inet_ntoa(addr));
+        }
+    }
+    else
+        printf("La fonction gethostbyname a echoue.\n");
+}
+
 void sender(struct sockaddr_in *addr) {
     const int data = 255;
     int i;
@@ -201,12 +223,12 @@ void receiver(void) {
 int main (int argc, char *argv[])
 {
     struct sockaddr_in serv_addr;
-
+PrintIp();
         pid = getpid();
         bzero(&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = PF_INET;
-        serv_addr.sin_addr.s_addr = inet_addr("10.10.101.109");  //Adresse internet
-        serv_addr.sin_port = 2222;  //Port number
+        serv_addr.sin_addr.s_addr = inet_addr("192.168.56.10");  //Adresse internet  #192.168.1.19 , 192.168.56.1
+        serv_addr.sin_port = 0;  //Port number
         if (fork() == 0) {
             printf("hello receiver");
             fflush(stdout);
@@ -223,3 +245,4 @@ int main (int argc, char *argv[])
 
     return 0;
 }
+
