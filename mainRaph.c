@@ -35,6 +35,8 @@
 #define BUFSIZE 1500  /* Taille du MTU */
 #define MAXLINE 80
 int pid = -1;
+char broadcastMin[20] = "";
+char broadcastMax[20] = "";
 
 struct packetICMP
 {
@@ -80,10 +82,10 @@ char getIP ()
                 fflush(stdout);
                 printf(addr);
                 fflush(stdout);
+                setBroadcastAddr(addr2, addr);
 
                 return addr;
             }
- //           printf("Interface: %s\tAddress: %s\n & %s\t", ifa->ifa_name, addr);
         }
     }
 
@@ -91,32 +93,83 @@ char getIP ()
     return 0;
 }
 
-char PrintIp()
+char** str_split (char *s, const char *ct)
 {
-    struct hostent * host;
-    struct in_addr addr;
-    char hostname[256];
+    char **tab = NULL;
 
-    if (gethostname(hostname, sizeof(hostname)) == 0)
-        printf("%s\n", hostname);
-    if ((host = gethostbyname(hostname)) != NULL)
+    if (s != NULL && ct != NULL)
     {
         int i;
+        char *cs = NULL;
+        size_t size = 1;
 
-        for(i = 0; host->h_addr_list[i] != NULL; i++)
+        for (i = 0; (cs = strtok (s, ct)); i++)
         {
-            memcpy(&addr.s_addr, host->h_addr_list[i], sizeof(addr.s_addr));
-            printf("IP : %s\n", inet_ntoa(addr));
+            if (size <= i + 1)
+            {
+                void *tmp = NULL;
+
+                size <<= 1;
+                tmp = realloc (tab, sizeof (*tab) * size);
+                if (tmp != NULL)
+                {
+                    tab = tmp;
+                }
+                else
+                {
+                    fprintf (stderr, "Memoire insuffisante\n");
+                    free (tab);
+                    tab = NULL;
+                    exit (EXIT_FAILURE);
+                }
+            }
+            tab[i] = cs;
+            s = NULL;
+        }
+ //       tab[i] = NULL;
+    }
+    return tab;
+}
+
+int relevant(char** tab) {
+    for (int i=0; i<4; i++) {
+        if ((strcmp(tab[i], "255")!=0)) {
+            return i;
         }
     }
-    else
-        printf("La fonction gethostbyname a echoue.\n");
+}
+
+void setBroadcastAddr(char* ip, char* mask) {
+    char** tabIP = str_split(ip, ".");
+    char** tabMask = str_split(mask, ".");
+
+    int relevantNb = relevant(tabMask);
+    for (int j = 0; j< relevantNb; j++) {
+
+        strcat(broadcastMin, tabIP[j]);
+        strcat(broadcastMin, ".");
+        strcat(broadcastMax, tabIP[j]);
+        strcat(broadcastMax, ".");
+
+    }
+    for (int i = relevantNb; i < 4; i++) {
+        strcat(broadcastMin, "0");
+        strcat(broadcastMax, "255");
+    }
+    printf("\n Broadcast min address :");
+    fflush(stdout);
+    printf(broadcastMin);
+    fflush(stdout);
+    printf("\n Broadcast max address :");
+    fflush(stdout);
+    printf(broadcastMax);
+    fflush(stdout);
 }
 
 void sender(struct sockaddr_in *addr) {
     const int data = 255;
     int i;
-    int conteur = 1;
+    int compteur = 1;
     int sendRawSocket;
     struct sockaddr_in receiver_addr;
     struct packetICMP packet;
@@ -139,16 +192,7 @@ void sender(struct sockaddr_in *addr) {
     for (;;) {
     int len = sizeof(receiver_addr);
 
-    printf("Msg #%d\n", conteur);
-/*    if (recvfrom(rcvRawSocket, &packet, sizeof(packet), 0, (struct sockaddr *) &receiver_addr, &len) > 0) {
-        printf("***Got message!***\n");
-        fflush(stdout);
-
-    } else {
-        printf("non envoyé");
-        fflush(stdout);
-    } */
-
+    printf("Msg #%d\n", compteur);
 
     bzero(&packet, sizeof(packet)); //On met le paquet à 0
     packet.hdr.type = ICMP_ECHO;    //Type Echo
@@ -157,7 +201,7 @@ void sender(struct sockaddr_in *addr) {
         packet.message[i] = i + '0';    //On envoie une suite de 0
     }
     packet.message[i] = 0;          //On marque la fin du message
-    packet.hdr.un.echo.sequence = conteur++;
+    packet.hdr.un.echo.sequence = compteur++;
 
 
     packet.hdr.checksum = checksum(&packet, sizeof(packet));
@@ -207,52 +251,6 @@ void receiver(void) {
             fflush(stdout);
 
         }
-
-        /*       if ( inet_ntop (PF_INET, (const void *)&fromAddr.sin_addr,source,sizeof(source)) <0) {
-                   printf ("erreur inet_ntop");
-                   exit (1); }
-               printf( "%d octets ICMP de %s: \n", n, source);
-
-               ip =  (struct ip*)rcvbuffer;                           // debut entete IP
-               lenIPHeader = ip->ip_hl * 4 ;       // ip->ip_hl longueur  en mot de 32 bits
-
-               icmp = (struct icmp*) (rcvbuffer + lenIPHeader) ;             // debut entete ICMP
-               ip2 =  (struct ip*) icmp + 8;               // debut en-tete IP contenu dans ICMP
-               lenIPHeader2 = ip->ip_hl * 4 ;       // longueur  en-tete IP
-
-               if (ip2->ip_p == IPPROTO_UDP) {
-                   udp = (struct udphdr *) (rcvbuffer + lenIPHeader + 8 + lenIPHeader2);         // debut en-tete UDP
-                   sport = ntohs(udp->source);
-                   dport = ntohs(udp->dest) ;
-                   printf (" port source = %d et port destination = %d \n", sport, dport);
-               }
-               switch (icmp->icmp_type) {
-                   case ICMP_UNREACH: {
-                       printf ("destination unreachable \n");
-                       switch (icmp->icmp_code){
-                           case ICMP_UNREACH_PORT:
-                               printf (" bad port \n");
-                               break;
-                           default:
-                               printf ("type %d, code = %d\n", icmp->icmp_type,
-                                       icmp->icmp_code);
-                               break;
-                       } }
-                       break;
-                   case ICMP_ECHO:
-                       printf (" echo service  \n");
-                       break;
-                   case ICMP_ECHOREPLY :
-                       printf (" echo reply  \n");
-                       break;
-                   case ICMP_TIMXCEED :
-                       printf (" Time Exceed \n");
-                       break;
-                   default:
-                       printf ("type %d, code = %d\n", icmp->icmp_type,
-                               icmp->icmp_code);
-               }
-       */
     }
 }
 int main (int argc, char *argv[])
@@ -262,7 +260,7 @@ getIP();
         pid = getpid();
         bzero(&serv_addr, sizeof(serv_addr));
         serv_addr.sin_family = PF_INET;
-        serv_addr.sin_addr.s_addr = inet_addr("192.168.1.30");  //Adresse internet  #192.168.1.19 , 192.168.1.43
+        serv_addr.sin_addr.s_addr = inet_addr("192.168.0.10");  //Adresse internet
         serv_addr.sin_port = 0;  //Port number
         if (fork() == 0) {
             fflush(stdout);
