@@ -37,7 +37,10 @@
 int pid = -1;
 char broadcastMin[20] = "";
 char broadcastMax[20] = "";
+char IPlist[2000] = "";
 char myIP[20] = "";
+char** tabIP;
+
 
 struct packetICMP
 {
@@ -58,41 +61,6 @@ unsigned short checksum(void *b, int len)
     sum += (sum >> 16);
     result = ~sum;
     return result;
-}
-
-char getIP ()
-{
-    struct ifaddrs *ifa2, *ifa;
-    struct sockaddr_in *sa;
-    char *addr, *addr2;
-    char addressOutputBuffer[INET_ADDRSTRLEN];
-
-
-    getifaddrs (&ifa2);
-    for (ifa = ifa2; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family==AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_netmask;
-            addr = inet_ntoa(sa->sin_addr);
-            addr2 = inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
-            if (strcmp(ifa->ifa_name,"wifi0")==0) {
-                printf("\n Adresse ip sur wifi0 du PC : ");
-                fflush(stdout);
-                printf(addr2);
-                fflush(stdout);
-                printf("\n Masque sous réseau sur wifi0 du PC : ");
-                fflush(stdout);
-                printf(addr);
-                fflush(stdout);
-                strcpy(myIP,addr2);
-                setBroadcastAddr(addr2, addr);
-
-                return addr;
-            }
-        }
-    }
-
-    freeifaddrs(ifa2);
-    return 0;
 }
 
 char** str_split (char *s, const char *ct)
@@ -168,6 +136,41 @@ void setBroadcastAddr(char* ip, char* mask) {
     fflush(stdout);
 }
 
+char getIP ()
+{
+    struct ifaddrs *ifa2, *ifa;
+    struct sockaddr_in *sa;
+    char *addr, *addr2;
+    char addressOutputBuffer[INET_ADDRSTRLEN];
+
+
+    getifaddrs (&ifa2);
+    for (ifa = ifa2; ifa; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr->sa_family==AF_INET) {
+            sa = (struct sockaddr_in *) ifa->ifa_netmask;
+            addr = inet_ntoa(sa->sin_addr);
+            addr2 = inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
+            if (strcmp(ifa->ifa_name,"wlan0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
+                printf("\n Adresse ip sur wifi0 du PC : ");
+                fflush(stdout);
+                printf(addr2);
+                fflush(stdout);
+                printf("\n Masque sous réseau sur wifi0 du PC : ");
+                fflush(stdout);
+                printf(addr);
+                fflush(stdout);
+                strcpy(myIP,addr2);
+                setBroadcastAddr(addr2, addr);
+
+                return addr;
+            }
+        }
+    }
+
+    freeifaddrs(ifa2);
+    return 0;
+}
+
 void sender(struct sockaddr_in *addr) {
     const int data = 255;
     int i;
@@ -175,7 +178,7 @@ void sender(struct sockaddr_in *addr) {
     int sendRawSocket;
     struct sockaddr_in receiver_addr;
     struct packetICMP packet;
-    printf("\n SENDER");
+  //  printf("\n SENDER");
     fflush(stdout);
 
 
@@ -191,7 +194,7 @@ void sender(struct sockaddr_in *addr) {
         exit(1);
     }
     int timer;
-  //  for (timer=0; timer<1;timer++) {
+    for (timer=0; timer<3;timer++) {
         int len = sizeof(receiver_addr);
 
         bzero(&packet, sizeof(packet)); //On met le paquet à 0
@@ -206,14 +209,14 @@ void sender(struct sockaddr_in *addr) {
 
         packet.hdr.checksum = checksum(&packet, sizeof(packet));
         if (sendto(sendRawSocket, &packet, sizeof(packet), 0, (struct sockaddr *) addr, sizeof(*addr)) <= 0) {
-            perror("Error send");
-            fflush(stdout);
+      //      perror("Error send");
+      //      fflush(stdout);
         } else {
-            printf("Sent !");
-            fflush(stdout);
+      //      printf("Sent !");
+      //      fflush(stdout);
         }
         sleep(0.3);
-  //  }
+    }
    return;
 }
 
@@ -245,19 +248,32 @@ void receiver(void) {
             exit(1);
         } else {
             if (strcmp(inet_ntoa(fromAddr.sin_addr),myIP)==0) {
-                printf("\n MonIP \n");
-                fflush(stdout);
 
             }
             else {
-                printf("\n Socket recu bg");
+  //            if (strcmp(IPlist[0],"NULL") == 0) {
+  //              strcpy(IPlist[0], inet_ntoa(fromAddr.sin_addr));
+  //              printf(IPlist[0] );
+  //            }
+  //            else {
+  //              for (int k = 0; k<sizeof(IPlist)/sizeof(IPlist[0]); k++) {
+  //                if (strcmp(IPlist[k], inet_ntoa(fromAddr.sin_addr))!=0) {
+                    strcat(IPlist, strcat(inet_ntoa(fromAddr.sin_addr),"/"));
+
+  //                }
+  //              }
+    //          }
+    //            printf("\n Socket recu bg");
                 printf("\n Adresse ayant envoyé le paquet : ");
                 printf(inet_ntoa(fromAddr.sin_addr));
                 fflush(stdout);
+    //            printf(IPlist);
+    //            fflush(stdout);
             }
 
         }
     }
+
 }
 int main (int argc, char *argv[]){
     getIP();
@@ -282,9 +298,9 @@ int main (int argc, char *argv[]){
     int valMAX3 = atoi(tabMaxIP[2]);
     int valMAX4 = atoi(tabMaxIP[3]);
     if (fork() == 0) {
-        printf("\nReceveur\n");
+ /*       printf("\nReceveur\n");
         fflush(stdout);
-        receiver();
+  */      receiver();
     }
     else {
 
@@ -309,19 +325,29 @@ int main (int argc, char *argv[]){
                         serv_addr.sin_family = PF_INET;
                         serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
                         serv_addr.sin_port = 0;  //Port number
-                        printf("\n Current send : ");
+    /*                    printf("\n Current send : ");
                         fflush(stdout);
                         printf(str1);
                         fflush(stdout);
-
+*/
 
                         sender(&serv_addr);
-
-
                     }
                 }
             }
         }
+
+/*        for (int i=0; i<sizeof(IPlist)/sizeof(IPlist[0]);i++) {
+          printf(IPlist[i]);
+          fflush(stdout);
+          printf("\n");
+          fflush(stdout);
+        }*/
+  //      printf(IPlist);
+  //      fflush(stdout);
+
+  //      char** tabIP = str_split(IPlist, "/");
+
         wait(0);
     }
 
@@ -329,4 +355,3 @@ int main (int argc, char *argv[]){
 
     return 0;
 }
-
