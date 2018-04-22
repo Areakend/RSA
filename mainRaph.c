@@ -37,6 +37,7 @@
 int pid = -1;
 char broadcastMin[20] = "";
 char broadcastMax[20] = "";
+char myIP[20] = "";
 
 struct packetICMP
 {
@@ -82,6 +83,7 @@ char getIP ()
                 fflush(stdout);
                 printf(addr);
                 fflush(stdout);
+                strcpy(myIP,addr2);
                 setBroadcastAddr(addr2, addr);
 
                 return addr;
@@ -156,11 +158,11 @@ void setBroadcastAddr(char* ip, char* mask) {
         strcat(broadcastMin, "0");
         strcat(broadcastMax, "255");
     }
-    printf("\n Broadcast min address :");
+    printf("\n Broadcast address :");
     fflush(stdout);
     printf(broadcastMin);
     fflush(stdout);
-    printf("\n Broadcast max address :");
+    printf("\n Max accessible IP address :");
     fflush(stdout);
     printf(broadcastMax);
     fflush(stdout);
@@ -188,33 +190,31 @@ void sender(struct sockaddr_in *addr) {
         fflush(stdout);
         exit(1);
     }
+    int timer;
+  //  for (timer=0; timer<1;timer++) {
+        int len = sizeof(receiver_addr);
 
-    for (;;) {
-    int len = sizeof(receiver_addr);
-
-    printf("Msg #%d\n", compteur);
-
-    bzero(&packet, sizeof(packet)); //On met le paquet à 0
-    packet.hdr.type = ICMP_ECHO;    //Type Echo
-    packet.hdr.un.echo.id = pid;
-    for (i = 0; i < sizeof(packet.message) - 1; i++) {
-        packet.message[i] = i + '0';    //On envoie une suite de 0
-    }
-    packet.message[i] = 0;          //On marque la fin du message
-    packet.hdr.un.echo.sequence = compteur++;
+        bzero(&packet, sizeof(packet)); //On met le paquet à 0
+        packet.hdr.type = ICMP_ECHO;    //Type Echo
+        packet.hdr.un.echo.id = pid;
+        for (i = 0; i < sizeof(packet.message) - 1; i++) {
+            packet.message[i] = i + '0';    //On envoie une suite de 0
+        }
+        packet.message[i] = 0;          //On marque la fin du message
+        packet.hdr.un.echo.sequence = compteur++;
 
 
-    packet.hdr.checksum = checksum(&packet, sizeof(packet));
-    if (sendto(sendRawSocket, &packet, sizeof(packet), 0, (struct sockaddr *) addr, sizeof(*addr)) <= 0) {
-          perror("Error send");
-        fflush(stdout);
-    }
-else {
-        printf("Sent !");
-        fflush(stdout);
-    }
-        sleep(1);
-   }
+        packet.hdr.checksum = checksum(&packet, sizeof(packet));
+        if (sendto(sendRawSocket, &packet, sizeof(packet), 0, (struct sockaddr *) addr, sizeof(*addr)) <= 0) {
+            perror("Error send");
+            fflush(stdout);
+        } else {
+            printf("Sent !");
+            fflush(stdout);
+        }
+        sleep(0.3);
+  //  }
+   return;
 }
 
 void receiver(void) {
@@ -237,41 +237,94 @@ void receiver(void) {
     for (;;) {
         len = sizeof(fromAddr);
         bzero(rcvbuffer, sizeof(rcvbuffer));
-        printf("\n Envoi");
-        fflush(stdout);
+
         if ((n = recvfrom(rawSocket, rcvbuffer, BUFSIZE, 0,
                           (struct sockaddr *) &fromAddr, &len)) < 0) {
             printf("erreur recvfrom");
             fflush(stdout);
             exit(1);
         } else {
-            printf("\n Socket recu bg");
-            printf("\n Adresse ayant envoyé le paquet : ");
-            printf(inet_ntoa(fromAddr.sin_addr));
-            fflush(stdout);
+            if (strcmp(inet_ntoa(fromAddr.sin_addr),myIP)==0) {
+                printf("\n MonIP \n");
+                fflush(stdout);
+
+            }
+            else {
+                printf("\n Socket recu bg");
+                printf("\n Adresse ayant envoyé le paquet : ");
+                printf(inet_ntoa(fromAddr.sin_addr));
+                fflush(stdout);
+            }
 
         }
     }
 }
-int main (int argc, char *argv[])
-{
-    struct sockaddr_in serv_addr;
-getIP();
-        pid = getpid();
-        bzero(&serv_addr, sizeof(serv_addr));
-        serv_addr.sin_family = PF_INET;
-        serv_addr.sin_addr.s_addr = inet_addr("192.168.0.10");  //Adresse internet
-        serv_addr.sin_port = 0;  //Port number
-        if (fork() == 0) {
-            fflush(stdout);
-            receiver();
-        }
-        else {
-            fflush(stdout);
-            sender(&serv_addr);
-        }
+int main (int argc, char *argv[]){
+    getIP();
+    pid = getpid();
+    char** tabBas = str_split(broadcastMin, ".");
+    char** tabMaxIP = str_split(broadcastMax, ".");
 
+    char str1[4];
+    char str2[4];
+    char str3[4];
+    char str4[4];
+
+
+
+    int val1 = atoi(tabBas[0]);
+    int val2 = atoi(tabBas[1]);
+    int val3 = atoi(tabBas[2]);
+    int val4 = atoi(tabBas[3]);
+
+    int valMAX1 = atoi(tabMaxIP[0]);
+    int valMAX2 = atoi(tabMaxIP[1]);
+    int valMAX3 = atoi(tabMaxIP[2]);
+    int valMAX4 = atoi(tabMaxIP[3]);
+    if (fork() == 0) {
+        printf("\nReceveur\n");
+        fflush(stdout);
+        receiver();
+    }
+    else {
+
+        for (int i1 = val1; i1 <= valMAX1; i1++) {
+            for (int i2 = val2; i2 <= valMAX2; i2++) {
+                for (int i3 = val3; i3 <= valMAX3; i3++) {
+                    for (int i4 = val4+1; i4 <= valMAX4; i4++) {
+                        sprintf(str1, "%d", i1);
+                        sprintf(str2, "%d", i2);
+                        sprintf(str3, "%d", i3);
+                        sprintf(str4, "%d", i4);
+                        strcat(str1, ".");
+                        strcat(str1, str2);
+                        strcat(str1, ".");
+                        strcat(str1, str3);
+                        strcat(str1, ".");
+                        strcat(str1, str4);
+
+                        struct sockaddr_in serv_addr;
+
+                        bzero(&serv_addr, sizeof(serv_addr));
+                        serv_addr.sin_family = PF_INET;
+                        serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
+                        serv_addr.sin_port = 0;  //Port number
+                        printf("\n Current send : ");
+                        fflush(stdout);
+                        printf(str1);
+                        fflush(stdout);
+
+
+                        sender(&serv_addr);
+
+
+                    }
+                }
+            }
+        }
         wait(0);
+    }
+
 
 
     return 0;
