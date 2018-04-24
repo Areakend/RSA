@@ -39,8 +39,8 @@ char broadcastMin[20] = "";
 char broadcastMax[20] = "";
 char IPlist[2000] = "";
 char myIP[20] = "";
-char** tabIP;
-
+char tabIP[1000][20];
+int nbIP = 0;
 
 struct packetICMP
 {
@@ -178,8 +178,6 @@ void sender(struct sockaddr_in *addr) {
     int sendRawSocket;
     struct sockaddr_in receiver_addr;
     struct packetICMP packet;
-  //  printf("\n SENDER");
-    fflush(stdout);
 
 
     if ((sendRawSocket = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
@@ -217,6 +215,8 @@ void sender(struct sockaddr_in *addr) {
         }
         sleep(0.3);
     }
+    close(sendRawSocket);
+    shutdown(sendRawSocket,2);
    return;
 }
 
@@ -247,31 +247,31 @@ void receiver(void) {
             fflush(stdout);
             exit(1);
         } else {
-            if (strcmp(inet_ntoa(fromAddr.sin_addr),myIP)==0) {
+            if (strcmp(inet_ntoa(fromAddr.sin_addr), myIP) == 0) {
 
-            }
-            else {
-  //            if (strcmp(IPlist[0],"NULL") == 0) {
-  //              strcpy(IPlist[0], inet_ntoa(fromAddr.sin_addr));
-  //              printf(IPlist[0] );
-  //            }
-  //            else {
-  //              for (int k = 0; k<sizeof(IPlist)/sizeof(IPlist[0]); k++) {
-  //                if (strcmp(IPlist[k], inet_ntoa(fromAddr.sin_addr))!=0) {
-                    strcat(IPlist, strcat(inet_ntoa(fromAddr.sin_addr),"/"));
+            } else {
 
-  //                }
-  //              }
-    //          }
-    //            printf("\n Socket recu bg");
-                printf("\n Adresse ayant envoyé le paquet : ");
-                printf(inet_ntoa(fromAddr.sin_addr));
-                fflush(stdout);
-    //            printf(IPlist);
-    //            fflush(stdout);
+                int test = 0;
+
+                for (int k = 0; k <= nbIP; k++) {
+                    if ((test == 0) && (strcmp(&IPlist[k], inet_ntoa(fromAddr.sin_addr)) == 0)) {
+                        test = 1;
+                    }
+                }
+                if (test == 0) {
+                    strcpy(&IPlist[nbIP + 1], inet_ntoa(fromAddr.sin_addr));
+                    nbIP = nbIP + 1;
+
+                    printf("\n Adresse ayant envoyé le paquet : ");
+                    printf(inet_ntoa(fromAddr.sin_addr));
+                    fflush(stdout);
+                }
+
+
             }
 
         }
+
     }
 
 }
@@ -304,10 +304,11 @@ int main (int argc, char *argv[]){
     }
     else {
 
-        for (int i1 = val1; i1 <= valMAX1; i1++) {
-            for (int i2 = val2; i2 <= valMAX2; i2++) {
-                for (int i3 = val3; i3 <= valMAX3; i3++) {
-                    for (int i4 = val4+1; i4 <= valMAX4; i4++) {
+        for (int i1 = val1; i1 <= val1; i1++) {
+            for (int i2 = val2; i2 <= val2; i2++) {
+                for (int i3 = val3; i3 <= 1; i3++) {
+
+                    for (int i4 = val4+1; i4 <= 255; i4++) {
                         sprintf(str1, "%d", i1);
                         sprintf(str2, "%d", i2);
                         sprintf(str3, "%d", i3);
@@ -324,14 +325,18 @@ int main (int argc, char *argv[]){
                         bzero(&serv_addr, sizeof(serv_addr));
                         serv_addr.sin_family = PF_INET;
                         serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
-                        serv_addr.sin_port = 0;  //Port number
-    /*                    printf("\n Current send : ");
-                        fflush(stdout);
-                        printf(str1);
-                        fflush(stdout);
-*/
+                        for (int port = 0; port < 1000; ++port) {
 
-                        sender(&serv_addr);
+
+                            serv_addr.sin_port =port;  //Port number
+                            /*                    printf("\n Current send : ");
+                                                fflush(stdout);
+                                                printf(str1);
+                                                fflush(stdout);
+                        */
+
+                            sender(&serv_addr);
+                        }
                     }
                 }
             }
