@@ -27,6 +27,7 @@
 #include <netinet/udp.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 #include <resolv.h>
 #include <ifaddrs.h>
 #include <unistd.h> //fork

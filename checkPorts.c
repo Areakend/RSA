@@ -118,8 +118,8 @@ char getIP ()
             addr = inet_ntoa(sa->sin_addr);
             addr2 = (char*) inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
 
-            if (strcmp(ifa->ifa_name,"wlp2s0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
-                printf("Adresse ip sur %s du PC : ",ifa->ifa_name);
+            if (strcmp(ifa->ifa_name,"wlp2s0")==0 || strcmp(ifa->ifa_name,"wifi0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
+                printf("\nAdresse ip sur %s du PC : ",ifa->ifa_name);
                 fflush(stdout);
                 printf("%s\n",addr2);
                 fflush(stdout);
@@ -181,7 +181,7 @@ void sender(struct sockaddr_in *addr) {
     shutdown(sendRawSocket,2);
 }
 
-void receiver(void) {
+void receiver() {
     int rawSocket;
     struct sockaddr_in fromAddr;
     socklen_t len;
@@ -193,7 +193,6 @@ void receiver(void) {
 
         exit(1);
     }
-
 
     for (;;) {
         len = sizeof(fromAddr);
@@ -229,14 +228,13 @@ void receiver(void) {
             }
 
         }
-
     }
-
 }
 int main (int argc, char *argv[]){
     getIP();
     pid = getpid();
     char** tabBas = str_split(broadcastMin, ".");
+
 
     char str1[4];
     char str2[4];
@@ -250,7 +248,9 @@ int main (int argc, char *argv[]){
     int val3 = atoi(tabBas[2]);
     int val4 = atoi(tabBas[3]);
 
-    if (fork() == 0) {
+    int child_pid = fork();
+
+    if (child_pid == 0) {
         receiver();
     }
     else {
@@ -269,9 +269,8 @@ int main (int argc, char *argv[]){
             bzero(&serv_addr, sizeof(serv_addr));
             serv_addr.sin_family = PF_INET;
             serv_addr.sin_addr.s_addr = inet_addr(ipCopy);  //Adresse internet
-            printf("%s\n",ipCopy);
-            for (int port = 0; port < 1000; ++port) {
-
+//            printf("%s\n",ipCopy);
+            for (int port = 0; port < 1023; ++port) {
                 serv_addr.sin_port = port;  //Port number
                 sender(&serv_addr);
             }
@@ -309,7 +308,9 @@ int main (int argc, char *argv[]){
 //            }
 //        }
 
-        wait(0);
+        //on attend qq secondes avant de kill le fils
+        sleep(3);
+        kill(child_pid,SIGTERM);
     }
 
     return 0;
