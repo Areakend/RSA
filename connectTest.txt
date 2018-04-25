@@ -1,0 +1,9 @@
+Tester le projet MyNmap
+
+Voici le numéro port, le login et le mot de passe pour accéder à votre environnement de test :
+
+10024 miribel jeremraphRSA
+
+Donc pour se logger faire : ssh -p 10024 miribel@tardis.telecomnancy.univ-lorraine.fr
+
+Pour rappel : Le réseau virtuel est le 192.168.150.0/24. Les « portes d’entrées » tournent sur les IP de .1 à .36. Les « vrais » serveurs tournent à partir de .37.
