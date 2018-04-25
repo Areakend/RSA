@@ -15,7 +15,6 @@ char broadcastMin[20] = "";
 char broadcastMax[20] = "";
 char IPlist[2000] = "";
 char myIP[20] = "";
-char tabIP[1000][20];
 int nbIP = 0;
 
 unsigned short checksum(void *b, int len)
@@ -59,14 +58,12 @@ char** str_split (char *s, const char *ct)
                 {
                     fprintf (stderr, "Memoire insuffisante\n");
                     free (tab);
-                    tab = NULL;
                     exit (EXIT_FAILURE);
                 }
             }
             tab[i] = cs;
             s = NULL;
         }
- //       tab[i] = NULL;
     }
     return tab;
 }
@@ -96,13 +93,13 @@ void setBroadcastAddr(char* ip, char* mask) {
         strcat(broadcastMin, "0");
         strcat(broadcastMax, "255");
     }
-    printf("\n Broadcast address :");
+    printf("Broadcast address : ");
     fflush(stdout);
-    printf(broadcastMin);
+    printf("%s\n",broadcastMin);
     fflush(stdout);
-    printf("\n Max accessible IP address :");
+    printf("Max accessible IP address : ");
     fflush(stdout);
-    printf(broadcastMax);
+    printf("%s\n\n",broadcastMax);
     fflush(stdout);
 }
 
@@ -119,20 +116,21 @@ char getIP ()
         if (ifa->ifa_addr->sa_family==AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_netmask;
             addr = inet_ntoa(sa->sin_addr);
-            addr2 = inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
+            addr2 = (char*) inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
+
             if (strcmp(ifa->ifa_name,"wlp2s0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
-                printf("\n Adresse ip sur wifi0 du PC : ");
+                printf("Adresse ip sur %s du PC : ",ifa->ifa_name);
                 fflush(stdout);
-                printf(addr2);
+                printf("%s\n",addr2);
                 fflush(stdout);
-                printf("\n Masque sous réseau sur wifi0 du PC : ");
+                printf("Masque sous réseau sur %s du PC : ",ifa->ifa_name);
                 fflush(stdout);
-                printf(addr);
+                printf("%s\n",addr);
                 fflush(stdout);
                 strcpy(myIP,addr2);
                 setBroadcastAddr(addr2, addr);
 
-                return addr;
+                return *addr;
             }
         }
     }
@@ -151,19 +149,18 @@ void sender(struct sockaddr_in *addr) {
 
 
     if ((sendRawSocket = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
-        perror("erreur send socket");
+        perror("Error send socket: ");
         fflush(stdout);
         exit(1);
     }
 
     if (setsockopt(sendRawSocket, SOL_IP, IP_TTL, &data, sizeof(data)) != 0) {
-        perror("Set TTL option");
+        perror("Error set TTL option: ");
         fflush(stdout);
         exit(1);
     }
     int timer;
     for (timer=0; timer<3;timer++) {
-        int len = sizeof(receiver_addr);
 
         bzero(&packet, sizeof(packet)); //On met le paquet à 0
         packet.hdr.type = ICMP_ECHO;    //Type Echo
@@ -177,30 +174,21 @@ void sender(struct sockaddr_in *addr) {
 
         packet.hdr.checksum = checksum(&packet, sizeof(packet));
         if (sendto(sendRawSocket, &packet, sizeof(packet), 0, (struct sockaddr *) addr, sizeof(*addr)) <= 0) {
-      //      perror("Error send");
-      //      fflush(stdout);
-        } else {
-      //      printf("Sent !");
-      //      fflush(stdout);
         }
         sleep(0.3);
     }
     close(sendRawSocket);
     shutdown(sendRawSocket,2);
-   return;
 }
 
 void receiver(void) {
-    int rawSocket, n;
+    int rawSocket;
     struct sockaddr_in fromAddr;
     socklen_t len;
-    char source[BUFSIZE], rcvbuffer[BUFSIZE];;
-    struct ip *ip, *ip2;
-    struct icmp *icmp;
-    struct udphdr *udp;
+    char rcvbuffer[BUFSIZE];;
 
     if ((rawSocket = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
-        perror("erreur receive socket");
+        perror("Error receive socket: ");
         fflush(stdout);
 
         exit(1);
@@ -211,9 +199,9 @@ void receiver(void) {
         len = sizeof(fromAddr);
         bzero(rcvbuffer, sizeof(rcvbuffer));
 
-        if ((n = recvfrom(rawSocket, rcvbuffer, BUFSIZE, 0,
+        if ((recvfrom(rawSocket, rcvbuffer, BUFSIZE, 0,
                           (struct sockaddr *) &fromAddr, &len)) < 0) {
-            printf("erreur recvfrom");
+            printf("Error recvfrom\n");
             fflush(stdout);
             exit(1);
         } else {
@@ -232,8 +220,8 @@ void receiver(void) {
                     strcpy(&IPlist[nbIP + 1], inet_ntoa(fromAddr.sin_addr));
                     nbIP = nbIP + 1;
 
-                    printf("\n Adresse ayant envoyé le paquet : ");
-                    printf(inet_ntoa(fromAddr.sin_addr));
+                    printf("Adresse ayant envoyé le paquet : ");
+                    printf("%s\n",inet_ntoa(fromAddr.sin_addr));
                     fflush(stdout);
                 }
 
@@ -249,7 +237,6 @@ int main (int argc, char *argv[]){
     getIP();
     pid = getpid();
     char** tabBas = str_split(broadcastMin, ".");
-    char** tabMaxIP = str_split(broadcastMax, ".");
 
     char str1[4];
     char str2[4];
@@ -263,70 +250,67 @@ int main (int argc, char *argv[]){
     int val3 = atoi(tabBas[2]);
     int val4 = atoi(tabBas[3]);
 
-    int valMAX1 = atoi(tabMaxIP[0]);
-    int valMAX2 = atoi(tabMaxIP[1]);
-    int valMAX3 = atoi(tabMaxIP[2]);
-    int valMAX4 = atoi(tabMaxIP[3]);
     if (fork() == 0) {
- /*       printf("\nReceveur\n");
-        fflush(stdout);
-  */      receiver();
+        receiver();
     }
     else {
+        char ip[16] = "192.168.";
+        char ipCopy[16];
+        sprintf(str3,"%d",val3);
+        strcat(ip,str3);
+        for (int i4 = val4+1; i4 <= 255; i4++) {
+            strcpy(ipCopy,ip);
+            sprintf(str4, "%d", i4);
+            strcat(ipCopy, ".");
+            strcat(ipCopy, str4);
 
-        for (int i1 = val1; i1 <= val1; i1++) {
-            for (int i2 = val2; i2 <= val2; i2++) {
-                for (int i3 = val3; i3 <= 1; i3++) {
+            struct sockaddr_in serv_addr;
 
-                    for (int i4 = val4+1; i4 <= 255; i4++) {
-                        sprintf(str1, "%d", i1);
-                        sprintf(str2, "%d", i2);
-                        sprintf(str3, "%d", i3);
-                        sprintf(str4, "%d", i4);
-                        strcat(str1, ".");
-                        strcat(str1, "168");
-                        strcat(str1, ".");
-                        strcat(str1, "1");
-                        strcat(str1, ".");
-                        strcat(str1, str4);
+            bzero(&serv_addr, sizeof(serv_addr));
+            serv_addr.sin_family = PF_INET;
+            serv_addr.sin_addr.s_addr = inet_addr(ipCopy);  //Adresse internet
+            printf("%s\n",ipCopy);
+            for (int port = 0; port < 1000; ++port) {
 
-                        struct sockaddr_in serv_addr;
-
-                        bzero(&serv_addr, sizeof(serv_addr));
-                        serv_addr.sin_family = PF_INET;
-                        serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
-                        printf("%s\n",str1);
-                        for (int port = 0; port < 1000; ++port) {
-
-                            serv_addr.sin_port =port;  //Port number
-                            /*                    printf("\n Current send : ");
-                                                fflush(stdout);
-                                                printf(str1);
-                                                fflush(stdout);
-                        */
-
-                            sender(&serv_addr);
-                        }
-                    }
-                }
+                serv_addr.sin_port = port;  //Port number
+                sender(&serv_addr);
             }
         }
 
-/*        for (int i=0; i<sizeof(IPlist)/sizeof(IPlist[0]);i++) {
-          printf(IPlist[i]);
-          fflush(stdout);
-          printf("\n");
-          fflush(stdout);
-        }*/
-  //      printf(IPlist);
-  //      fflush(stdout);
-
-  //      char** tabIP = str_split(IPlist, "/");
+//        for (int i1 = val1; i1 <= val1; i1++) {
+//            for (int i2 = val2; i2 <= val2; i2++) {
+//                for (int i3 = val3; i3 <= 1; i3++) {
+//
+//                    for (int i4 = val4+1; i4 <= 255; i4++) {
+//                        sprintf(str1, "%d", i1);
+//                        sprintf(str2, "%d", i2);
+//                        sprintf(str3, "%d", i3);
+//                        sprintf(str4, "%d", i4);
+//                        strcat(str1, ".");
+//                        strcat(str1, "168");
+//                        strcat(str1, ".");
+//                        strcat(str1, "1");
+//                        strcat(str1, ".");
+//                        strcat(str1, str4);
+//
+//                        struct sockaddr_in serv_addr;
+//
+//                        bzero(&serv_addr, sizeof(serv_addr));
+//                        serv_addr.sin_family = PF_INET;
+//                        serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
+//                        printf("%s\n",str1);
+//                        for (int port = 0; port < 1000; ++port) {
+//
+//                            serv_addr.sin_port = port;  //Port number
+//                            sender(&serv_addr);
+//                        }
+//                    }
+//                }
+//            }
+//        }
 
         wait(0);
     }
-
-
 
     return 0;
 }
