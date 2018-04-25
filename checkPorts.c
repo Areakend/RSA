@@ -1,39 +1,15 @@
-//
-// Created by Zaven on 15/04/2018.
-//
+////////////////////////////////////////////////////////////
+// IP scanning program used to find open ports and IP     //
+// on the local network.                                  //
+// This program sends ICMP messages through the network.  //
+//                                                        //
+// Programmed by Jeremy Hynes & Raphael Ohanian           //
+// Telecom Nancy - Universite de Lorraine - 2018          //
+////////////////////////////////////////////////////////////
 
-#include     <stdio.h>
-#include     <sys/types.h>
-#include     <sys/socket.h>
-#include     <netinet/in.h>
-#include     <arpa/inet.h>
-#include     <sys/uio.h>
-#include     <time.h>
-#include     <sys/timeb.h>
-#include     <netdb.h>
-#include     <stdlib.h>
-#include     <strings.h>
-#include<string.h>
+#include "checkPorts.h"
 
-#include     <netinet/ip.h>
-#include     <netinet/ip_icmp.h>
-#include     <netinet/udp.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <resolv.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/ip_icmp.h>
-#include <ifaddrs.h>
-#include <unistd.h> //fork
-#include <sys/wait.h> //wait
-
-/****
-  **** STRUCTURE ICMP
-  ****/
-#define BUFSIZE 1500  /* Taille du MTU */
-#define MAXLINE 80
+// Variables
 int pid = -1;
 char broadcastMin[20] = "";
 char broadcastMax[20] = "";
@@ -41,12 +17,6 @@ char IPlist[2000] = "";
 char myIP[20] = "";
 char tabIP[1000][20];
 int nbIP = 0;
-
-struct packetICMP
-{
-    struct icmphdr hdr;
-    char message[BUFSIZE-sizeof(struct icmphdr)];
-};
 
 unsigned short checksum(void *b, int len)
 {	unsigned short *buf = b;
@@ -150,7 +120,7 @@ char getIP ()
             sa = (struct sockaddr_in *) ifa->ifa_netmask;
             addr = inet_ntoa(sa->sin_addr);
             addr2 = inet_ntop(ifa->ifa_addr->sa_family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, addressOutputBuffer, sizeof(addressOutputBuffer));
-            if (strcmp(ifa->ifa_name,"wlan0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
+            if (strcmp(ifa->ifa_name,"wlp2s0")==0) {  //A MODIFIER EN FONCTION DE LA CONNECTION (ex : wifi0)
                 printf("\n Adresse ip sur wifi0 du PC : ");
                 fflush(stdout);
                 printf(addr2);
@@ -314,9 +284,9 @@ int main (int argc, char *argv[]){
                         sprintf(str3, "%d", i3);
                         sprintf(str4, "%d", i4);
                         strcat(str1, ".");
-                        strcat(str1, str2);
+                        strcat(str1, "168");
                         strcat(str1, ".");
-                        strcat(str1, str3);
+                        strcat(str1, "1");
                         strcat(str1, ".");
                         strcat(str1, str4);
 
@@ -325,8 +295,8 @@ int main (int argc, char *argv[]){
                         bzero(&serv_addr, sizeof(serv_addr));
                         serv_addr.sin_family = PF_INET;
                         serv_addr.sin_addr.s_addr = inet_addr(str1);  //Adresse internet
+                        printf("%s\n",str1);
                         for (int port = 0; port < 1000; ++port) {
-
 
                             serv_addr.sin_port =port;  //Port number
                             /*                    printf("\n Current send : ");

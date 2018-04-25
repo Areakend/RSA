@@ -1,2 +1,2 @@
-all:	main.c
-	gcc -o mainRaph mainRaph.c
+all:	checkPorts.c
+	gcc -o checkPorts checkPorts.c
